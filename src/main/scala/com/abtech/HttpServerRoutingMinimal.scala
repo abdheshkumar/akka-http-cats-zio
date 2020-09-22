@@ -4,7 +4,12 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.marshalling.{Marshaller, Marshalling, PredefinedToResponseMarshallers, ToResponseMarshaller}
+import akka.http.scaladsl.marshalling.{
+  Marshaller,
+  Marshalling,
+  PredefinedToResponseMarshallers,
+  ToResponseMarshaller
+}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import zio.console.Console
@@ -118,18 +123,19 @@ object HttpServerRoutingMinimal extends ZIOSupport with zio.App {
         ZIO.fromFuture(_ =>
           Http().newServerAt("localhost", 8081).bind(route)
         ) <* console.putStrLn(
-          s"Server online at http://localhost:8080/\nPress RETURN to stop..."
+          s"Server online at http://localhost:8080"
         )
-      )(serverBinding => ZIO.fromFuture(_ => serverBinding.unbind()).orDie)
+      )(serverBinding =>
+        ZIO.fromFuture(_ => serverBinding.unbind()).orDie *> console
+          .putStrLn("Server terminated..")
+      )
       .toLayer)
 
-    ZIO
-      .access[Has[ServerBinding]](_.get)
-      .provideCustomLayer(app)
+    app.launch
       .foldM(
         ex => console.putStrLn(ex.getMessage) *> IO.succeed(ExitCode.failure),
-        b =>
-          console.putStrLn(b.localAddress.getHostString) *> IO
+        _ =>
+          console.putStrLn("Application exit") *> IO
             .succeed(ExitCode.success)
       )
 
